@@ -4,6 +4,9 @@
 #include "stdlib.h"
 #include "opencv2/opencv.hpp"
 #include "image.h"
+#include "opencv2/core/core_c.h"
+#include "opencv2/videoio/legacy/constants_c.h"
+#include "opencv2/highgui/highgui_c.h"
 
 using namespace cv;
 
@@ -47,48 +50,25 @@ image ipl_to_image(IplImage* src)
 
 Mat image_to_mat(image im)
 {
-image copy = copy_image(im);
-constrain_image(copy);
-if(im.c == 3) rgbgr_image(copy);
+    image copy = copy_image(im);
+    constrain_image(copy);
+    if(im.c == 3) rgbgr_image(copy);
 
-Mat m(cv::Size(im.w,im.h), CV_8UC(im.c));
-int x,y,c;
-
-int step = m.step;
-for(y = 0; y < im.h; ++y){
-    for(x = 0; x < im.w; ++x){
-        for(c= 0; c < im.c; ++c){
-            float val = im.data[c*im.h*im.w + y*im.w + x];
-            m.data[y*step + x*im.c + c] = (unsigned char)(val*255);
-        }
-    }
-}
-
-free_image(copy);
-return m;
+    IplImage *ipl = image_to_ipl(copy);
+    Mat m = cvarrToMat(ipl, true);
+    cvReleaseImage(&ipl);
+    free_image(copy);
+    return m;
 }
 
 image mat_to_image(Mat m)
 {
-
-int h = m.rows;
-int w = m.cols;
-int c = m.channels();
-image im = make_image(w, h, c);
-unsigned char *data = (unsigned char *)m.data;
-int step = m.step;
-int i, j, k;
-
-for(i = 0; i < h; ++i){
-    for(k= 0; k < c; ++k){
-        for(j = 0; j < w; ++j){
-            im.data[k*w*h + i*w + j] = data[i*step + j*c + k]/255.;
-        }
-    }
+    IplImage ipl = cvIplImage(m);
+    image im = ipl_to_image(&ipl);
+    rgbgr_image(im);
+    return im;
 }
-rgbgr_image(im);
-return im;
-}
+
 void *open_video_stream(const char *f, int c, int w, int h, int fps)
 {
     VideoCapture *cap;
